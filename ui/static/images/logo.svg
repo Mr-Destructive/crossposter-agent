@@ -1,0 +1,14 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logo-gradient" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A3D"/>
+      <stop offset="100%" stop-color="#E5323B"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="12" fill="url(#logo-gradient)"/>
+  <circle cx="9" cy="24" r="2.8" fill="white"/>
+  <line x1="9" y1="24" x2="22" y2="24" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="22" y1="24" x2="36.5" y2="13.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="22" y1="24" x2="38.5" y2="24" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="22" y1="24" x2="36.5" y2="34.5" stroke="white" stroke-width="3" stroke-linecap="round"/>
+</svg>

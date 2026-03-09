@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Crossposter Agent</title>
+  <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-content">
+      <a class="brand" href="/">
+        <span class="brand-mark"></span>
+        <div class="wordmark-block">
+          <span class="wm-name">Crossposter</span>
+          <span class="wm-sub">Agent</span>
+        </div>
+      </a>
+      <div class="flex">
+        <nav class="app-nav">
+          <a class="nav-link" href="/">Activity</a>
+          <a class="nav-link active" href="/dashboard">Dashboard</a>
+          <a class="nav-link" href="/add_post">Compose</a>
+          <a class="nav-link" href="/add_platform">Platforms</a>
+          <form method="post" action="/logout" style="display:inline;"><button type="submit" class="nav-link nav-logout">Logout</button></form>
+        </nav>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+          <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    (function() {
+      const html = document.documentElement;
+      const stored = localStorage.getItem('theme');
+      const setTheme = (theme) => {
+        if (theme === 'dark') html.classList.add('dark');
+        else html.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      };
+      if (stored) setTheme(stored);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      document.getElementById('theme-toggle').addEventListener('click', () => setTheme(html.classList.contains('dark') ? 'light' : 'dark'));
+    })();
+  </script>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1>Dashboard</h1>
+        <p class="muted">Welcome back, {{.Username}}. Monitor your publishing pipeline.</p>
+      </div>
+      <a href="/add_post" class="btn">New Post</a>
+    </div>
+
+    <section class="stats-grid">
+      <div class="stat-card"><h3>Pending</h3><div class="value">{{.Stats.Pending}}</div></div>
+      <div class="stat-card"><h3>Processing</h3><div class="value" style="color:var(--primary);">{{.Stats.Processing}}</div></div>
+      <div class="stat-card"><h3>Success</h3><div class="value" style="color:var(--success);">{{.Stats.Success}}</div></div>
+      <div class="stat-card"><h3>Failed</h3><div class="value" style="color:var(--error);">{{.Stats.Failed}}</div></div>
+    </section>
+
+    {{if .Latest}}
+    <section class="panel latest-panel">
+      <h2 class="panel-title">Latest Delivery</h2>
+      <div class="latest-card">
+        <div>
+          <p class="latest-label">Title</p>
+          <p class="latest-value">{{.Latest.Title}}</p>
+        </div>
+        <div>
+          <p class="latest-label">Platform</p>
+          <p class="latest-value" style="text-transform:capitalize;">{{.Latest.Platform}}</p>
+        </div>
+        <div>
+          <p class="latest-label">Status</p>
+          <p class="latest-value">{{.Latest.Status}}</p>
+        </div>
+        <div>
+          <p class="latest-label">Scheduled</p>
+          <p class="latest-value">{{if .Latest.ScheduledAt}}{{.Latest.ScheduledAt}}{{else}}Immediate{{end}}</p>
+        </div>
+        <div>
+          <p class="latest-label">Created</p>
+          <p class="latest-value">{{.Latest.CreatedAt}}</p>
+        </div>
+        <div class="latest-actions" style="grid-column: span 2;">
+          <a class="btn btn-secondary" href="/edit_post?id={{.Latest.PostID}}">Edit post</a>
+          {{if .Latest.RemoteURL}}<a class="btn" href="{{.Latest.RemoteURL}}" target="_blank">Open live</a>{{end}}
+          <a class="btn" href="/add_post">New post</a>
+        </div>
+      </div>
+    </section>
+    {{end}}
+
+    <section class="panel">
+      <h2 class="panel-title">Recent Activity</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Content</th>
+              <th>Platform</th>
+              <th>Status</th>
+              <th>Schedule</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Jobs}}
+            <tr>
+              <td>
+                <div style="font-weight:700;">{{.Title}}</div>
+                <div class="text-small muted" style="margin-top: 2px;">ID #{{.PostID}} • {{.CreatedAt}}</div>
+              </td>
+              <td>
+                <div class="flex">
+                  <img src="/static/images/{{.Platform}}.svg" alt="" style="width: 16px; height: 16px;">
+                  <span style="text-transform: capitalize; font-weight: 500;">{{.Platform}}</span>
+                </div>
+              </td>
+              <td><span class="status-badge status-{{.Status}}">{{.Status}}</span></td>
+              <td><span class="muted text-small">{{if .ScheduledAt}}{{.ScheduledAt}} (local){{else}}Immediate{{end}}</span></td>
+              <td>
+                <div class="flex">
+                  <a href="/edit_post?id={{.PostID}}" class="nav-link" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: var(--bg);">Edit</a>
+                  {{if .RemoteURL}}<a href="{{.RemoteURL}}" target="_blank" class="nav-link active" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">Open</a>{{end}}
+                </div>
+              </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="5" style="text-align: center; padding: 4rem 2rem;" class="muted">No posts found. Start by composing your first content item.</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,10 @@
+version: "1"
+packages:
+  - name: "crossposter_db"
+    path: "db"
+    engine: "sqlite"
+    schema:
+      - "db/schema.sql"
+    queries:
+      - "db/queries.sql"
+    emit_json_tags: true

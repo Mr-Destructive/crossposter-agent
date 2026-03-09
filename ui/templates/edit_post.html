@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Post | Crossposter Agent</title>
+  <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-content">
+      <a class="brand" href="/">
+        <span class="brand-mark"></span>
+        <div class="wordmark-block">
+          <span class="wm-name">Crossposter</span>
+          <span class="wm-sub">Agent</span>
+        </div>
+      </a>
+      <div class="flex">
+        <nav class="app-nav">
+          <a class="nav-link" href="/dashboard">Dashboard</a>
+          <a class="nav-link" href="/add_post">Compose</a>
+          <a class="nav-link" href="/add_platform">Platforms</a>
+          <form method="post" action="/logout" style="display:inline;"><button type="submit" class="nav-link nav-logout">Logout</button></form>
+        </nav>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+          <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    (function() {
+      const html = document.documentElement;
+      const stored = localStorage.getItem('theme');
+      const setTheme = (theme) => {
+        if (theme === 'dark') html.classList.add('dark');
+        else html.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      };
+      if (stored) setTheme(stored);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      document.getElementById('theme-toggle').addEventListener('click', () => setTheme(html.classList.contains('dark') ? 'light' : 'dark'));
+    })();
+  </script>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1>Edit Content</h1>
+        <p class="muted">Update your local content and optionally republish.</p>
+      </div>
+    </div>
+
+    {{if .Error}}<div class="panel status-failed" style="margin-bottom: 2rem; padding: 1rem;">{{.Error}}</div>{{end}}
+    {{if .Success}}<div class="panel status-success" style="margin-bottom: 2rem; padding: 1rem;">Post updated successfully.</div>{{end}}
+    {{if .SyncMessage}}<div class="panel status-success" style="margin-bottom: 2rem; padding: 1rem;">{{.SyncMessage}}</div>{{end}}
+    {{if .SyncError}}<div class="panel status-failed" style="margin-bottom: 2rem; padding: 1rem;">{{.SyncError}}</div>{{end}}
+
+    <div class="split-layout">
+      <div class="editor-main">
+        <form method="post" action="/edit_post?id={{.Post.ID}}">
+          <section class="panel">
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text" name="title" value="{{.Post.Title}}" required class="title-input" style="font-size: 1.5rem; width: 100%; border: 1px solid var(--border); padding: 0.5rem 1rem;">
+            </div>
+            <div class="form-group">
+              <label>Content</label>
+              <textarea name="content" class="content-editor" required style="border: 1px solid var(--border); padding: 1rem; width: 100%; min-height: 400px;">{{.Post.Content}}</textarea>
+            </div>
+            
+            <div style="margin-top: 2rem; display: flex; gap: 1rem; align-items: center;">
+              <button type="submit" class="btn">Save Changes</button>
+              <label class="flex" style="cursor:pointer; margin: 0; font-weight: 500;">
+                <input type="checkbox" name="requeue" value="1" style="width: auto;">
+                <span class="text-small">Re-queue for all platforms</span>
+              </label>
+            </div>
+          </section>
+        </form>
+      </div>
+
+      <div class="editor-side">
+        {{if .HashnodeRemoteID}}
+        <section class="panel">
+          <h2 class="panel-title" style="font-size: 0.875rem;">Hashnode Sync</h2>
+          <p class="text-small muted mb-4">Linked to remote post.</p>
+          <div class="flex" style="flex-direction: column; gap: 0.75rem;">
+            <form method="post" action="/sync/hashnode/edit" style="width: 100%;">
+              <input type="hidden" name="post_id" value="{{.Post.ID}}">
+              <button type="submit" class="btn btn-secondary" style="width: 100%; font-size: 0.75rem;">Sync to Hashnode</button>
+            </form>
+            <form method="post" action="/sync/hashnode/delete" style="width: 100%;">
+              <input type="hidden" name="post_id" value="{{.Post.ID}}">
+              <button type="submit" class="btn btn-secondary" style="width: 100%; font-size: 0.75rem; color: var(--error);">Delete from Hashnode</button>
+            </form>
+            <a href="{{.HashnodeRemoteURL}}" target="_blank" class="btn btn-secondary" style="width: 100%; font-size: 0.75rem;">View on Hashnode</a>
+          </div>
+        </section>
+        {{end}}
+
+        <section class="panel">
+          <h2 class="panel-title" style="font-size: 0.875rem;">Post Details</h2>
+          <div class="strategy-field">
+            <label>Local ID</label>
+            <div class="value">#{{.Post.ID}}</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

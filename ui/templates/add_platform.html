@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platforms | Crossposter Agent</title>
+  <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-content">
+      <a class="brand" href="/">
+        <span class="brand-mark"></span>
+        <div class="wordmark-block">
+          <span class="wm-name">Crossposter</span>
+          <span class="wm-sub">Agent</span>
+        </div>
+      </a>
+      <div class="flex">
+        <nav class="app-nav">
+          <a class="nav-link" href="/dashboard">Dashboard</a>
+          <a class="nav-link" href="/add_post">Compose</a>
+          <a class="nav-link active" href="/add_platform">Platforms</a>
+          <form method="post" action="/logout" style="display:inline;"><button type="submit" class="nav-link nav-logout">Logout</button></form>
+        </nav>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+          <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    (function() {
+      const html = document.documentElement;
+      const stored = localStorage.getItem('theme');
+      const setTheme = (theme) => {
+        if (theme === 'dark') html.classList.add('dark');
+        else html.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      };
+      if (stored) setTheme(stored);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      document.getElementById('theme-toggle').addEventListener('click', () => setTheme(html.classList.contains('dark') ? 'light' : 'dark'));
+    })();
+  </script>
+
+  <main class="container">
+    <div class="page-header">
+      <div>
+        <h1>Platform Settings</h1>
+        <p class="muted">Link your publishing accounts to enable automatic crossposting.</p>
+      </div>
+    </div>
+
+    {{if .Error}}<div class="panel status-failed" style="margin-bottom: 2rem; padding: 1rem;">{{.Error}}</div>{{end}}
+    {{if .Success}}<div class="panel status-success" style="margin-bottom: 2rem; padding: 1rem;">Credentials updated and encrypted.</div>{{end}}
+
+    <div class="split-layout" style="grid-template-columns: 1fr 1fr;">
+      <!-- Linked Accounts List -->
+      <section class="panel">
+        <h2 class="panel-title">Linked Accounts</h2>
+        <div class="platform-list-side">
+          {{range .ConfiguredPlatforms}}
+          <div class="platform-item-side active" style="justify-content:space-between; cursor:default; padding: var(--space-4); border-color: var(--border);">
+            <div class="flex">
+              <img src="/static/images/{{.Platform}}.svg" alt="">
+              <div>
+                <div style="font-weight:700; text-transform:capitalize; font-size:0.875rem;">{{.Platform}}</div>
+                <div class="text-small muted">{{.AuthType}}</div>
+              </div>
+            </div>
+            <a href="/add_platform?platform={{.Platform}}" class="btn btn-secondary" style="padding:0.4rem 0.75rem; font-size:0.75rem;">Edit</a>
+          </div>
+          {{else}}
+          <div style="text-align: center; padding: 3rem 0;" class="muted text-small">
+            No accounts linked yet. Use the form to connect your first platform.
+          </div>
+          {{end}}
+        </div>
+      </section>
+
+      <!-- Connection Form -->
+      <section class="panel">
+        <h2 class="panel-title">{{if .SelectedPlatform}}Connect {{.SelectedPlatform}}{{else}}Connect a New Platform{{end}}</h2>
+        <form method="post" action="/add_platform">
+          <div class="form-group">
+            <label>Provider</label>
+            <select name="platform" id="platform-select" required onchange="window.location.href='/add_platform?platform='+this.value">
+              <option value="devto" {{if eq .SelectedPlatform "devto"}}selected{{end}}>Dev.to</option>
+              <option value="hashnode" {{if eq .SelectedPlatform "hashnode"}}selected{{end}}>Hashnode</option>
+              <option value="bluesky" {{if eq .SelectedPlatform "bluesky"}}selected{{end}}>Bluesky</option>
+              <option value="medium" {{if eq .SelectedPlatform "medium"}}selected{{end}}>Medium</option>
+              <option value="reddit" {{if eq .SelectedPlatform "reddit"}}selected{{end}}>Reddit</option>
+              <option value="x" {{if eq .SelectedPlatform "x"}}selected{{end}}>X / Twitter</option>
+              <option value="substack" {{if eq .SelectedPlatform "substack"}}selected{{end}}>Substack</option>
+            </select>
+          </div>
+
+          <div style="background: var(--surface-subtle); padding: var(--space-6); border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: var(--space-6);">
+            {{if eq .SelectedPlatform "devto"}}
+              <div class="form-group">
+                <label>API Key</label>
+                <input type="password" name="devto_token" value="{{.DevtoToken}}" placeholder="sk_test_...">
+              </div>
+            {{else if eq .SelectedPlatform "hashnode"}}
+              <div class="form-group">
+                <label>Personal Access Token</label>
+                <input type="password" name="hashnode_token" value="{{.HashnodeToken}}">
+              </div>
+              <div class="form-group">
+                <label>Publication Domain</label>
+                <input type="text" name="hashnode_host" value="{{.HashnodeHost}}" placeholder="yourblog.hashnode.dev">
+              </div>
+            {{else if eq .SelectedPlatform "bluesky"}}
+              <div class="form-group">
+                <label>Handle / Email</label>
+                <input type="text" name="bluesky_identifier" value="{{.BlueskyIdentifier}}" placeholder="user.bsky.social">
+              </div>
+              <div class="form-group">
+                <label>App Password</label>
+                <input type="password" name="bluesky_app_password" value="{{.BlueskyAppPassword}}">
+              </div>
+            {{else if eq .SelectedPlatform "medium"}}
+              <div class="form-group">
+                <label>Integration Token</label>
+                <input type="password" name="medium_token" value="{{.MediumToken}}">
+              </div>
+              <div class="form-group">
+                <label>Publication ID</label>
+                <input type="text" name="medium_publication_id" value="{{.MediumPublicationID}}">
+              </div>
+            {{else if eq .SelectedPlatform "reddit"}}
+              <div class="form-group">
+                <label>OAuth Token</label>
+                <input type="password" name="reddit_token" value="{{.RedditToken}}">
+              </div>
+              <div class="form-group">
+                <label>Target Subreddit</label>
+                <input type="text" name="reddit_subreddit" value="{{.RedditSubreddit}}" placeholder="r/golang">
+              </div>
+            {{else if eq .SelectedPlatform "x"}}
+              <div class="form-group">
+                <label>OAuth Bearer Token</label>
+                <input type="password" name="x_token" value="{{.XToken}}">
+              </div>
+            {{else if eq .SelectedPlatform "substack"}}
+              <div class="form-group">
+                <label>Automation Endpoint</label>
+                <input type="text" name="substack_endpoint" value="{{.SubstackEndpoint}}" placeholder="https://api.substack.com/v1/...">
+              </div>
+              <div class="form-group">
+                <label>API Secret Token</label>
+                <input type="password" name="substack_token" value="{{.SubstackToken}}">
+              </div>
+            {{end}}
+          </div>
+
+          <button type="submit" class="btn" style="width:100%; height: 48px;">Link Platform</button>
+        </form>
+        <p class="text-small muted" style="text-align: center; margin-top: 1rem;">Tokens are encrypted at rest with AES-256-GCM.</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      var select = document.getElementById('platform-select');
+      var groups = document.querySelectorAll('.platform-fields');
+      function setRequired(group, enabled) {
+        group.querySelectorAll('input').forEach(function (field) {
+          if (enabled) field.setAttribute('required', 'required');
+          else field.removeAttribute('required');
+        });
+      }
+      function render() {
+        var p = select.value;
+        groups.forEach(function (g) {
+          var show = g.getAttribute('data-platform') === p;
+          g.style.display = show ? 'block' : 'none';
+          setRequired(g, show);
+        });
+      }
+      select.addEventListener('change', render);
+      render();
+    })();
+  </script>
+</body>
+</html>

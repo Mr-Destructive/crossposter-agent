@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compose | Crossposter Agent</title>
+  <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav-content">
+      <a class="brand" href="/">
+        <span class="brand-mark"></span>
+        <div class="wordmark-block">
+          <span class="wm-name">Crossposter</span>
+          <span class="wm-sub">Agent</span>
+        </div>
+      </a>
+      <div class="flex">
+        <nav class="app-nav">
+          <a class="nav-link" href="/">Activity</a>
+          <a class="nav-link active" href="/add_post">Compose</a>
+          <a class="nav-link" href="/add_platform">Platforms</a>
+          <form method="post" action="/logout" style="display:inline;"><button type="submit" class="nav-link nav-logout">Logout</button></form>
+        </nav>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <svg class="sun" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+          <svg class="moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    (function() {
+      const html = document.documentElement;
+      const stored = localStorage.getItem('theme');
+      const setTheme = (theme) => {
+        if (theme === 'dark') html.classList.add('dark');
+        else html.classList.remove('dark');
+        localStorage.setItem('theme', theme);
+      };
+      if (stored) setTheme(stored);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      document.getElementById('theme-toggle').addEventListener('click', () => setTheme(html.classList.contains('dark') ? 'light' : 'dark'));
+    })();
+  </script>
+
+  
+
+
+  <main class="container">
+    {{if .Error}}<div class="panel status-failed" style="margin-bottom: 2rem; padding: 1rem;">{{.Error}}</div>{{end}}
+    {{if .Success}}<div class="panel status-success" style="margin-bottom: 2rem; padding: 1rem;">{{.Success}}</div>{{end}}
+
+    <form id="compose-form" method="post" action="/add_post">
+      <input type="hidden" name="tz_offset_minutes" id="tz-offset-minutes" value="">
+      <input type="hidden" name="action" id="form-action" value="publish">
+
+      <div class="split-layout">
+        <div class="editor-main">
+          <input type="text" name="title" class="title-input" value="{{.Title}}" placeholder="Untitled Post">
+          <textarea name="content" class="content-editor" required placeholder="Tell your story... Markdown supported.">{{.Content}}</textarea>
+
+          <div class="reasoning-widget" id="reasoning-widget" style="display: none;">
+            <div class="reasoning-header" id="reasoning-toggle">
+              <span>Agent Thinking Process</span>
+              <span id="reasoning-status">Working...</span>
+            </div>
+            <div class="reasoning-body" id="reasoning-log"></div>
+          </div>
+
+          <section class="strategy-section" id="strategy-section" style="display: none;">
+            <div class="flex-between">
+              <h2 class="panel-title">Platform Strategy</h2>
+              <span class="muted" id="strategy-summary">Agent has suggested targets below.</span>
+            </div>
+            <div class="strategy-grid" id="strategy-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </section>
+        </div>
+
+        <div class="editor-side">
+          <section class="panel">
+            <h2 class="panel-title" style="font-size: 0.875rem;">Command Center</h2>
+            <div class="form-group">
+              <label>Agent Intent</label>
+              <textarea name="intent" rows="3" id="intent-input" placeholder="e.g. Adapt this for technical blogs on Dev.to and Hashnode with appropriate tags.">{{.Intent}}</textarea>
+            </div>
+            <button type="button" class="btn btn-secondary" id="ai-analyze-btn" style="width: 100%; gap: 8px;" onclick="if (window.__runBrainstorm) window.__runBrainstorm(event);">
+              <svg style="width:16px;height:16px;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-width="2"/></svg>
+              <span class="btn-text">Brainstorm Strategy</span>
+            </button>
+            
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem;">
+              <button type="submit" class="btn" id="publish-btn" style="width: 100%; height: 48px; font-size: 1rem; opacity: 0.5;" disabled>Execute & Publish</button>
+              <p class="muted text-small mt-2" style="text-align: center;">Review strategy before publishing</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-title" style="font-size: 0.875rem;">Distribution</h2>
+            <div class="form-group">
+              <label>Schedule (Local time)</label>
+              <input type="datetime-local" name="scheduled_at" value="{{.ScheduledAt}}">
+              <div class="text-small muted" style="margin-top:0.35rem;">Local timezone: <span id="timezone-name">loading…</span></div>
+            </div>
+            <div class="flex-between" style="margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 1rem;">
+              <label style="margin:0;">Destinations</label>
+              <label class="flex" style="margin:0; text-transform:none; font-weight:600; cursor:pointer;">
+                <input type="checkbox" name="auto_select" value="1" id="auto-check" style="width:auto;" checked> 
+                <span class="text-small">Auto</span>
+              </label>
+            </div>
+            <div class="platform-grid mt-4" id="platform-list">
+              <div class="platform-row" data-platform="devto">
+                <label class="platform-item-side active" data-platform="devto">
+                  <input type="checkbox" name="platforms" value="devto" checked>
+                  <img src="/static/images/devto.svg">
+                  <span>devto</span>
+                  <span class="platform-indicator" id="platform-indicator-devto"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="hashnode">
+                <label class="platform-item-side active" data-platform="hashnode">
+                  <input type="checkbox" name="platforms" value="hashnode" checked>
+                  <img src="/static/images/hashnode.svg">
+                  <span>hashnode</span>
+                  <span class="platform-indicator" id="platform-indicator-hashnode"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="bluesky">
+                <label class="platform-item-side active" data-platform="bluesky">
+                  <input type="checkbox" name="platforms" value="bluesky" checked>
+                  <img src="/static/images/bluesky.svg">
+                  <span>bluesky</span>
+                  <span class="platform-indicator" id="platform-indicator-bluesky"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="medium">
+                <label class="platform-item-side active" data-platform="medium">
+                  <input type="checkbox" name="platforms" value="medium" checked>
+                  <img src="/static/images/medium.svg">
+                  <span>medium</span>
+                  <span class="platform-indicator" id="platform-indicator-medium"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="reddit">
+                <label class="platform-item-side active" data-platform="reddit">
+                  <input type="checkbox" name="platforms" value="reddit" checked>
+                  <img src="/static/images/reddit.svg">
+                  <span>reddit</span>
+                  <span class="platform-indicator" id="platform-indicator-reddit"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="x">
+                <label class="platform-item-side active" data-platform="x">
+                  <input type="checkbox" name="platforms" value="x" checked>
+                  <img src="/static/images/x.svg">
+                  <span>x</span>
+                  <span class="platform-indicator" id="platform-indicator-x"></span>
+                </label>
+              </div>
+              <div class="platform-row" data-platform="substack">
+                <label class="platform-item-side active" data-platform="substack">
+                  <input type="checkbox" name="platforms" value="substack" checked>
+                  <img src="/static/images/substack.svg">
+                  <span>substack</span>
+                  <span class="platform-indicator" id="platform-indicator-substack"></span>
+                </label>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Hidden inputs for platform specific options will be injected here by JS -->
+      <div id="dynamic-options"></div>
+
+    </form>
+  </main>
+
+  <script>
+    (function() {
+      const form = document.getElementById('compose-form');
+      const autoCheck = document.getElementById('auto-check');
+      const platformList = document.getElementById('platform-list');
+      const tiles = platformList.querySelectorAll('.platform-item-side');
+      const aiBtn = document.getElementById('ai-analyze-btn');
+      const publishBtn = document.getElementById('publish-btn');
+      const reasoningWidget = document.getElementById('reasoning-widget');
+      const reasoningLog = document.getElementById('reasoning-log');
+      const reasoningStatus = document.getElementById('reasoning-status');
+      const strategySection = document.getElementById('strategy-section');
+      const strategyGrid = document.getElementById('strategy-grid');
+      const dynamicOptions = document.getElementById('dynamic-options');
+
+      const scheduleInput = document.querySelector('input[name="scheduled_at"]');
+      const tzInput = document.getElementById('tz-offset-minutes');
+      const timezoneHint = document.getElementById('timezone-name');
+      const platforms = ["devto", "hashnode", "bluesky", "medium", "reddit", "x", "substack"];
+      const platformOptions = {};
+      const platformFieldMap = {
+        'devto': ['tags', 'series', 'publish_mode', 'canonical_url'],
+        'hashnode': ['tags', 'series', 'publish_mode', 'canonical_url'],
+        'bluesky': ['thread_mode', 'additional'],
+        'medium': ['tags', 'publish_mode', 'canonical_url'],
+        'reddit': ['subreddit', 'tags'],
+        'x': ['thread_mode', 'additional'],
+        'substack': ['publish_mode']
+      };
+      let strategyReady = false;
+      let lastPlanTitle = '';
+
+      function resetPlatformOptions() {
+        Object.keys(platformOptions).forEach(key => delete platformOptions[key]);
+        dynamicOptions.innerHTML = '';
+      }
+
+      function parseIntentTime(text) {
+        if (!text) return null;
+        const lower = text.toLowerCase();
+        const match = text.match(/at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (!match) return null;
+        
+        let hour = parseInt(match[1], 10);
+        const minute = match[2] ? parseInt(match[2], 10) : 0;
+        const suffix = match[3];
+        if (suffix) {
+          const ampm = suffix.toLowerCase();
+          if (ampm === 'pm' && hour < 12) hour += 12;
+          if (ampm === 'am' && hour === 12) hour = 0;
+        }
+
+        const date = new Date();
+        if (lower.includes('tomorrow')) {
+          date.setDate(date.getDate() + 1);
+        } else if (lower.includes('next monday')) {
+          const diff = (8 - date.getDay()) % 7 || 7;
+          date.setDate(date.getDate() + diff);
+        } else if (lower.includes('next tuesday')) {
+          const diff = (9 - date.getDay()) % 7 || 7;
+          date.setDate(date.getDate() + diff);
+        } else if (lower.includes('next wednesday')) {
+          const diff = (10 - date.getDay()) % 7 || 7;
+          date.setDate(date.getDate() + diff);
+        } else if (lower.includes('next thursday')) {
+          const diff = (11 - date.getDay()) % 7 || 7;
+          date.setDate(date.getDate() + diff);
+        } else if (lower.includes('next friday')) {
+          const diff = (12 - date.getDay()) % 7 || 7;
+          date.setDate(date.getDate() + diff);
+        }
+
+        date.setHours(hour, minute, 0, 0);
+        if (date < new Date() && !lower.includes('tomorrow')) {
+          date.setDate(date.getDate() + 1);
+        }
+        return date;
+      }
+
+      function formatLocalDate(date) {
+        const pad = v => String(v).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+          date.getHours()
+        )}:${pad(date.getMinutes())}`;
+      }
+
+      function applyPlanSchedule(schedule) {
+        if (!schedule || !scheduleInput) return;
+        const planned = new Date(schedule);
+        if (Number.isNaN(planned.getTime())) return;
+        scheduleInput.value = formatLocalDate(planned);
+        if (tzInput) {
+          tzInput.value = String(planned.getTimezoneOffset());
+        }
+      }
+
+      function applyIntentSchedule() {
+        if (!scheduleInput) return false;
+        const intentText = document.getElementById('intent-input').value;
+        const candidate = parseIntentTime(intentText);
+        if (!candidate) return false;
+        scheduleInput.value = formatLocalDate(candidate);
+        if (tzInput) {
+          tzInput.value = String(new Date().getTimezoneOffset());
+        }
+        return true;
+      }
+
+      function updateUI() {
+        const isAuto = autoCheck.checked;
+        tiles.forEach(tile => {
+          const input = tile.querySelector('input');
+          if (isAuto) {
+            tile.classList.add('disabled');
+            input.disabled = true;
+            tile.classList.add('active');
+          } else {
+            tile.classList.remove('disabled');
+            input.disabled = false;
+            tile.classList.toggle('active', input.checked);
+          }
+        });
+      }
+
+      function addLog(msg, isHeader = false) {
+        const div = document.createElement('div');
+        div.style.marginBottom = '6px';
+        div.style.color = isHeader ? 'var(--text)' : 'inherit';
+        div.style.fontWeight = isHeader ? '700' : '400';
+        div.textContent = isHeader ? `# ${msg}` : `> ${msg}`;
+        reasoningLog.appendChild(div);
+        reasoningLog.scrollTop = reasoningLog.scrollHeight;
+      }
+
+      function syncHiddenInputs() {
+        dynamicOptions.innerHTML = '';
+        Object.entries(platformOptions).forEach(([platform, opts]) => {
+          Object.entries(opts).forEach(([key, value]) => {
+            if (!value) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `${platform}_${key}`;
+            input.value = value;
+            dynamicOptions.appendChild(input);
+          });
+        });
+      }
+
+      function updatePlatformIndicators(platform) {
+        const row = platformList.querySelector(`[data-platform="${platform}"]`);
+        if (!row) return;
+        const indicator = row.querySelector('.platform-indicator');
+        const hasOptions = platformOptions[platform] && Object.keys(platformOptions[platform]).length > 0;
+        if (indicator) {
+          indicator.textContent = hasOptions ? 'Customized' : '';
+        }
+        row.classList.toggle('active-customized', hasOptions);
+      }
+
+      function setPlanOptions(platform, opt) {
+        const pickValue = (...keys) => {
+          for (const key of keys) {
+            if (opt[key]) return opt[key];
+          }
+          return null;
+        };
+        const allowed = platformFieldMap[platform] || [];
+        const normalized = {};
+
+        if (allowed.includes('tags')) {
+          const tags = pickValue('tags', 'Tags');
+          if (tags) normalized.tags = Array.isArray(tags) ? tags.join(', ') : tags;
+        }
+        if (allowed.includes('series')) {
+          const series = pickValue('series');
+          if (series) normalized.series = series;
+        }
+        if (allowed.includes('publish_mode')) {
+          const publishMode = pickValue('publish_mode', 'publishMode');
+          if (publishMode) normalized.publish_mode = publishMode;
+        }
+        if (allowed.includes('canonical_url')) {
+          const canonical = pickValue('canonical_url', 'canonicalUrl');
+          if (canonical) normalized.canonical_url = canonical;
+        }
+        if (allowed.includes('subreddit')) {
+          const subreddit = pickValue('subreddit');
+          if (subreddit) normalized.subreddit = subreddit;
+        }
+        if (allowed.includes('tone')) {
+          const tone = pickValue('tone');
+          if (tone) normalized.tone = tone;
+        }
+        if (allowed.includes('audience')) {
+          const audience = pickValue('audience');
+          if (audience) normalized.audience = audience;
+        }
+        if (allowed.includes('cta')) {
+          const cta = pickValue('call_to_action', 'cta', 'callToAction');
+          if (cta) normalized.cta = cta;
+        }
+        if (allowed.includes('thread_mode')) {
+          const threadMode = pickValue('thread_mode', 'threadMode');
+          if (threadMode) normalized.thread_mode = threadMode;
+        }
+        if (allowed.includes('additional')) {
+          const additional = pickValue('additional', 'notes');
+          if (additional) normalized.additional = additional;
+        }
+
+        if (Object.keys(normalized).length) {
+          platformOptions[platform] = normalized;
+        } else {
+          delete platformOptions[platform];
+        }
+        updatePlatformIndicators(platform);
+      }
+
+      function buildOptionsPanel(platform) {
+        const panel = document.createElement('div');
+        panel.className = 'strategy-options-panel';
+        const allowedFields = platformFieldMap[platform] || [];
+        
+        let html = '<div class="options-grid">';
+        
+        if (allowedFields.includes('tags')) {
+          html += `<div class="form-group"><label>Tags</label><input type="text" data-option-field="tags" placeholder="ai, product, launch"></div>`;
+        }
+        if (allowedFields.includes('series')) {
+          html += `<div class="form-group"><label>Series</label><input type="text" data-option-field="series" placeholder="Product series"></div>`;
+        }
+        if (allowedFields.includes('publish_mode')) {
+          html += `<div class="form-group"><label>Publish mode</label><select data-option-field="publish_mode"><option value="publish">Publish</option><option value="draft">Save as draft</option></select></div>`;
+        }
+        if (allowedFields.includes('canonical_url')) {
+          html += `<div class="form-group"><label>Canonical URL</label><input type="text" data-option-field="canonical_url" placeholder="https://blog.example.com/post"></div>`;
+        }
+        if (allowedFields.includes('subreddit')) {
+          html += `<div class="form-group"><label>Subreddit</label><input type="text" data-option-field="subreddit" placeholder="r/golang"></div>`;
+        }
+        if (allowedFields.includes('tone')) {
+          html += `<div class="form-group"><label>Tone</label><input type="text" data-option-field="tone" placeholder="Conversational, data-driven..."></div>`;
+        }
+        if (allowedFields.includes('audience')) {
+          html += `<div class="form-group"><label>Audience</label><input type="text" data-option-field="audience" placeholder="Founders, dev teams"></div>`;
+        }
+        if (allowedFields.includes('cta')) {
+          html += `<div class="form-group"><label>Call to action</label><input type="text" data-option-field="cta" placeholder="Try the new CLI"></div>`;
+        }
+        if (allowedFields.includes('thread_mode')) {
+          html += `<div class="form-group"><label>Thread mode</label><select data-option-field="thread_mode"><option value="auto">Auto thread</option><option value="thread">Force thread</option></select></div>`;
+        }
+        if (allowedFields.includes('additional')) {
+          html += `<div class="form-group"><label>Additional hints</label><textarea data-option-field="additional" rows="2" placeholder="Any extra instructions"></textarea></div>`;
+        }
+        
+        html += '</div>';
+        html += `<div class="options-actions">
+            <button type="button" class="btn btn-secondary btn-sm options-cancel">Close</button>
+            <button type="button" class="btn btn-sm options-save">Save &amp; use</button>
+          </div>`;
+        
+        panel.innerHTML = html;
+        panel.querySelector('.options-cancel').addEventListener('click', () => toggleOptionsPanel(panel, false));
+        panel.querySelector('.options-save').addEventListener('click', () => savePanelValues(platform, panel));
+        return panel;
+      }
+
+      function populateOptionPanel(panel, platform) {
+        const opts = platformOptions[platform] || {};
+        panel.querySelectorAll('[data-option-field]').forEach(field => {
+          const key = field.dataset.optionField;
+          if (opts[key]) {
+            field.value = opts[key];
+          } else if (field.tagName === 'SELECT') {
+            field.value = field.querySelector('option').value;
+          } else {
+            field.value = '';
+          }
+        });
+      }
+
+      function toggleOptionsPanel(panel, open) {
+        if (open) panel.classList.add('open');
+        else panel.classList.remove('open');
+      }
+
+      function savePanelValues(platform, panel) {
+        const values = {};
+        panel.querySelectorAll('[data-option-field]').forEach(field => {
+          let value = field.value.trim();
+          if (!value) return;
+          const key = field.dataset.optionField;
+          if (key === 'tags') {
+            value = value
+              .split(',')
+              .map(item => item.trim())
+              .filter(Boolean)
+              .join(', ');
+          }
+          if (value) {
+            values[key] = value;
+          }
+        });
+        if (Object.keys(values).length) {
+          platformOptions[platform] = values;
+        } else {
+          delete platformOptions[platform];
+        }
+        syncHiddenInputs();
+        updatePlatformIndicators(platform);
+        toggleOptionsPanel(panel, false);
+      }
+
+      async function runAnalysis() {
+        strategyReady = false;
+        resetPlatformOptions();
+        applyIntentSchedule();
+        const intent = document.getElementById('intent-input').value;
+        const title = document.querySelector('input[name="title"]').value;
+        const content = document.querySelector('textarea[name="content"]').value;
+
+        if (!content) {
+          alert('Please write some content first!');
+          return;
+        }
+
+        const btnText = aiBtn.querySelector('.btn-text');
+        reasoningWidget.style.display = 'block';
+        reasoningLog.innerHTML = '';
+        reasoningStatus.textContent = 'Waking up agent...';
+        aiBtn.disabled = true;
+        aiBtn.classList.add('is-loading');
+        if (btnText) btnText.textContent = 'Waking up agent...';
+        aiBtn.insertAdjacentHTML('afterbegin', '<span class="spinner" aria-hidden="true"></span>');
+        strategySection.style.display = 'none';
+        publishBtn.disabled = true;
+        publishBtn.style.opacity = '0.5';
+
+        addLog('Initializing Agent Session...', true);
+        await new Promise(r => setTimeout(r, 600));
+        addLog('Analyzing content structure and tone...');
+        await new Promise(r => setTimeout(r, 800));
+        addLog(`Processing intent: "${intent || 'Default distribution'}"`);
+
+        try {
+          const originalAction = document.getElementById('form-action').value;
+          document.getElementById('form-action').value = 'analyze';
+          const response = await fetch('/add_post?action=analyze', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: new FormData(form)
+          });
+          document.getElementById('form-action').value = originalAction;
+
+          if (!response.ok) {
+            throw new Error(`AI Analysis failed (${response.status})`);
+          }
+          const contentType = (response.headers.get('content-type') || '').toLowerCase();
+          if (!contentType.includes('application/json')) {
+            const raw = await response.text();
+            throw new Error(`Unexpected response from server: ${raw.slice(0, 120)}`);
+          }
+
+          const data = await response.json();
+          if (!data || !Array.isArray(data.platforms)) {
+            throw new Error('Invalid AI response payload');
+          }
+
+          addLog('Inferred Strategy:', true);
+          addLog(`Target Platforms: ${data.platforms.join(', ')}`);
+          addLog(`Proposed Title: ${data.title}`);
+
+          if (data.options) {
+            Object.keys(data.options).forEach(p => setPlanOptions(p, data.options[p]));
+            Object.keys(data.options).forEach(p => {
+              const suggestion = data.options[p];
+              addLog(`[${p}] suggested tags: ${Array.isArray(suggestion.tags) ? suggestion.tags.join(', ') : suggestion.tags || 'none'}`);
+            });
+          }
+
+          renderStrategy(data);
+          applyPlanSchedule(data.schedule);
+
+          reasoningStatus.textContent = 'Strategy Ready';
+          strategySection.style.display = 'block';
+          publishBtn.disabled = false;
+          publishBtn.style.opacity = '1';
+          strategyReady = data.platforms.length > 0;
+        } catch (err) {
+          addLog(`Error: ${err.message || err}`, true);
+          addLog('Please retry. If this repeats, refresh and check login/session.');
+          reasoningStatus.textContent = 'Failed';
+        } finally {
+          document.getElementById('form-action').value = 'publish';
+          const spinner = aiBtn.querySelector('.spinner');
+          if (spinner) spinner.remove();
+          if (btnText) btnText.textContent = 'Brainstorm Strategy';
+          aiBtn.classList.remove('is-loading');
+          aiBtn.disabled = false;
+        }
+      }
+
+      function renderStrategy(data) {
+        strategyGrid.innerHTML = '';
+        dynamicOptions.innerHTML = '';
+
+        if (data.title) {
+          const titleField = document.querySelector('input[name="title"]');
+          const current = titleField ? titleField.value.trim() : '';
+          if (titleField && (!current || current === lastPlanTitle)) {
+            titleField.value = data.title;
+          }
+          lastPlanTitle = data.title;
+        }
+
+        data.platforms.forEach(platform => {
+          const opt = platformOptions[platform] || {};
+          const allowed = platformFieldMap[platform] || [];
+          const card = document.createElement('div');
+          card.className = 'strategy-card';
+          card.dataset.platform = platform;
+          
+          let fieldsHtml = `
+            <div class="strategy-field">
+              <label>Proposed Title</label>
+              <div class="value">${data.title}</div>
+            </div>
+          `;
+
+          if (allowed.includes('tags') && opt.tags) {
+            fieldsHtml += `<div class="strategy-field"><label>Tags</label><div class="value">${opt.tags}</div></div>`;
+          }
+          if (allowed.includes('subreddit') && opt.subreddit) {
+            fieldsHtml += `<div class="strategy-field"><label>Subreddit</label><div class="value">r/${opt.subreddit}</div></div>`;
+          }
+          if (allowed.includes('series') && opt.series) {
+            fieldsHtml += `<div class="strategy-field"><label>Series</label><div class="value">${opt.series}</div></div>`;
+          }
+          if (allowed.includes('publish_mode') && opt.publish_mode) {
+            fieldsHtml += `<div class="strategy-field"><label>Publish Mode</label><div class="value">${opt.publish_mode}</div></div>`;
+          }
+          if (allowed.includes('thread_mode') && opt.thread_mode) {
+            fieldsHtml += `<div class="strategy-field"><label>Thread Mode</label><div class="value">${opt.thread_mode}</div></div>`;
+          }
+
+          card.innerHTML = `
+            <div class="strategy-card-header">
+              <img src="/static/images/${platform}.svg">
+              <span style="text-transform:capitalize;">${platform}</span>
+            </div>
+            ${fieldsHtml}
+            <div style="margin-top:auto; display:flex; gap:8px;">
+              <button type="button" class="btn btn-secondary btn-customize" style="flex:1; font-size:0.7rem; padding: 4px;">Customize</button>
+              <button type="button" class="btn btn-confirm" style="flex:1; font-size:0.7rem; padding: 4px; background:var(--success);">Confirm</button>
+            </div>
+          `;
+
+          const optionsPanel = buildOptionsPanel(platform);
+          card.appendChild(optionsPanel);
+
+          const customizeBtn = card.querySelector('.btn-customize');
+          customizeBtn.addEventListener('click', event => {
+            event.preventDefault();
+            if (!strategyReady) return;
+            const shouldOpen = !optionsPanel.classList.contains('open');
+            if (shouldOpen) populateOptionPanel(optionsPanel, platform);
+            toggleOptionsPanel(optionsPanel, shouldOpen);
+          });
+
+          card.querySelector('.btn-confirm').addEventListener('click', () => {
+            card.classList.toggle('confirmed');
+            const btn = card.querySelector('.btn-confirm');
+            btn.textContent = card.classList.contains('confirmed') ? 'Confirmed ✓' : 'Confirm';
+            btn.style.opacity = card.classList.contains('confirmed') ? '0.7' : '1';
+          });
+
+          strategyGrid.appendChild(card);
+        });
+
+        syncHiddenInputs();
+      }
+
+      autoCheck.addEventListener('change', updateUI);
+      platformList.addEventListener('change', updateUI);
+      const intentInput = document.getElementById('intent-input');
+      if (intentInput) {
+        intentInput.addEventListener('change', applyIntentSchedule);
+      }
+      window.__runBrainstorm = function(e) {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        runAnalysis();
+      };
+      aiBtn.addEventListener('click', window.__runBrainstorm);
+      window.applyIntentSchedule = applyIntentSchedule;
+
+      form?.addEventListener('submit', () => {
+        if (tzInput) tzInput.value = String(new Date().getTimezoneOffset());
+      });
+
+      if (timezoneHint) {
+        timezoneHint.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+      }
+      if (tzInput && !tzInput.value) {
+        tzInput.value = String(new Date().getTimezoneOffset());
+      }
+      updateUI();
+    })();
+  </script>
+
+</body>
+</html>

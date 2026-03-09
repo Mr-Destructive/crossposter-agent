@@ -4,9 +4,7 @@ Crossposter Agent distributes content across multiple platforms simultaneously. 
 
 ## Demo
 
-<video src="https://github.com/Mr-Destructive/crossposter-agent/raw/main/demos/demo.mp4" controls="controls" style="max-width: 100%;">
-  Your browser does not support the video tag.
-</video>
+<video src="demos/demo.mp4" controls></video>
 
 ## Features
 
